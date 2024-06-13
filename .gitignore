@@ -1,0 +1,9 @@
+.vs
+.vsconfig
+Binaries
+Intermediate
+DerivedDataCache
+Saved
+Raw
+*.sln
+*.ipch

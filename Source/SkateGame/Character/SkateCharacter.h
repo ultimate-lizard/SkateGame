@@ -25,6 +25,18 @@ public:
 
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skate")
+	float SkateMaxSpeed;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skate")
+	float SkateAcceleration;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skate")
+	float SkateBreakingStrength;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skate")
+	float SkateFriction;
+
 protected:
 	virtual void BeginPlay() override;
 

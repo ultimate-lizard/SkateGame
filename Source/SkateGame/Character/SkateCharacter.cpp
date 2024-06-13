@@ -11,6 +11,11 @@ ASkateCharacter::ASkateCharacter()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
+	SkateMaxSpeed = 75'000.0f;
+	SkateAcceleration = 1000.0f;
+	SkateBreakingStrength = 30'000.0f;
+	SkateFriction = 10'000.0f;
+
 	SkateMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("Skate Mesh"));
 	SkateMesh->SetupAttachment(RootComponent);
 
@@ -39,8 +44,6 @@ void ASkateCharacter::Move(const FInputActionValue& InputActionValue)
 
 	if (MovementVector.X > 0.0f && SkateMesh)
 	{
-		const float SkateAcceleration = 1000.0f;
-		const float SkateMaxSpeed = 75'000.0f;
 		if (SkateSpeed < SkateMaxSpeed)
 		{
 			SkateSpeed += SkateAcceleration;
@@ -80,13 +83,11 @@ void ASkateCharacter::Tick(float DeltaTime)
 
 	// Break
 	const bool bMovingForward = FVector::DotProduct(GetVelocity(), GetActorForwardVector()) > 0.0f;
-	const float SkateBreakStrength = 30'000.0f;
 	if (bMovingForward && bBreaking)
 	{
-		SkateSpeed -= SkateBreakStrength * DeltaTime;
+		SkateSpeed -= SkateBreakingStrength * DeltaTime;
 	}
 
-	const float SkateFriction = 10'000.0f;
 	if (SkateSpeed > 0.0f)
 	{
 		SkateSpeed -= SkateFriction * DeltaTime;

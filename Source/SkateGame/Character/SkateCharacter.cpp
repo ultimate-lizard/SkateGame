@@ -27,8 +27,22 @@ ASkateCharacter::ASkateCharacter()
 	FollowCamera->SetupAttachment(SpringArm, USpringArmComponent::SocketName);
 	// FollowCamera->bUsePawnControlRotation = false;
 
+	DefaultMappingContext = nullptr;
+	MoveAction = nullptr;
+
 	SkateSpeed = 0.0f;
 	bBreaking = false;
+	bPushing = false;
+}
+
+float ASkateCharacter::GetSkateSpeed() const
+{
+	return SkateSpeed;
+}
+
+bool ASkateCharacter::IsPushing() const
+{
+	return bPushing;
 }
 
 // Called when the game starts or when spawned
@@ -38,17 +52,23 @@ void ASkateCharacter::BeginPlay()
 	
 }
 
+void ASkateCharacter::OnEndMove(const FInputActionValue& InputActionValue)
+{
+	const FVector2D MovementVector = InputActionValue.Get<FVector2D>();
+
+	if (MovementVector.X == 0.0f)
+	{
+		bPushing = false;
+	}
+}
+
 void ASkateCharacter::Move(const FInputActionValue& InputActionValue)
 {
 	const FVector2D MovementVector = InputActionValue.Get<FVector2D>();
 
 	if (MovementVector.X > 0.0f && SkateMesh)
 	{
-		if (SkateSpeed < SkateMaxSpeed)
-		{
-			SkateSpeed += SkateAcceleration;
-		}
-
+		bPushing = true;
 		bBreaking = false;
 	}
 	else if (MovementVector.X < 0.0f)
@@ -56,7 +76,12 @@ void ASkateCharacter::Move(const FInputActionValue& InputActionValue)
 		bBreaking = true;
 	}
 
-	if (MovementVector.Y && SkateSpeed > 1'000.0f)
+	if (MovementVector.X <= 0.0f)
+	{
+		bPushing = false;
+	}
+
+	if (MovementVector.Y && SkateSpeed > SkateAcceleration)
 	{
 		FRotator Rotation(0.0f);
 		Rotation.Yaw = MovementVector.Y;
@@ -66,12 +91,10 @@ void ASkateCharacter::Move(const FInputActionValue& InputActionValue)
 
 void ASkateCharacter::Push()
 {
-	//if (SkateMesh)
-	//{
-	//	const FVector MovementForward = SkateMesh->GetForwardVector();
-	//	const float PushStrength = 400'000.0f;
-	//	AddMovementInput(MovementForward, PushStrength);
-	//}
+	if (SkateSpeed < SkateMaxSpeed)
+	{
+		SkateSpeed += SkateAcceleration;
+	}
 }
 
 // Called every frame
@@ -93,7 +116,7 @@ void ASkateCharacter::Tick(float DeltaTime)
 		SkateSpeed -= SkateFriction * DeltaTime;
 	}
 
-	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, FString::Printf(TEXT("%f"), SkateSpeed));
+	//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, FString::Printf(TEXT("%f"), SkateSpeed));
 }
 
 // Called to bind functionality to input
@@ -112,5 +135,6 @@ void ASkateCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComp
 	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent))
 	{
 		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ASkateCharacter::Move);
+		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Completed, this, &ASkateCharacter::OnEndMove);
 	}
 }

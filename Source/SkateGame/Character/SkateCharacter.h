@@ -37,12 +37,20 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skate")
 	float SkateFriction;
 
+	UFUNCTION(BlueprintPure, Category = "Skate")
+	float GetSkateSpeed() const;
+
+	UFUNCTION(BlueprintPure, Category = "Skate")
+	bool IsPushing() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Skate")
+	void Push();
+
 protected:
 	virtual void BeginPlay() override;
 
+	void OnEndMove(const FInputActionValue& InputActionValue);
 	void Move(const FInputActionValue& InputActionValue);
-
-	void Push();
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mesh")
 	USkeletalMeshComponent* SkateMesh;
@@ -61,4 +69,5 @@ protected:
 
 	float SkateSpeed;
 	bool bBreaking;
+	bool bPushing;
 };

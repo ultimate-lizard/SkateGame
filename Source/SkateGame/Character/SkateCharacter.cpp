@@ -15,6 +15,8 @@ ASkateCharacter::ASkateCharacter()
 	SkateAcceleration = 1000.0f;
 	SkateBreakingStrength = 30'000.0f;
 	SkateFriction = 10'000.0f;
+	SkateJumpingSpeed = 30'000.0f;
+	SkateTurningSpeed = 10'000.0f;
 
 	SkateMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("Skate Mesh"));
 	SkateMesh->SetupAttachment(RootComponent);
@@ -29,10 +31,12 @@ ASkateCharacter::ASkateCharacter()
 
 	DefaultMappingContext = nullptr;
 	MoveAction = nullptr;
+	JumpAction = nullptr;
 
 	SkateSpeed = 0.0f;
 	bBreaking = false;
 	bPushing = false;
+	bJumping = false;
 }
 
 float ASkateCharacter::GetSkateSpeed() const
@@ -43,6 +47,11 @@ float ASkateCharacter::GetSkateSpeed() const
 bool ASkateCharacter::IsPushing() const
 {
 	return bPushing;
+}
+
+bool ASkateCharacter::IsJumping() const
+{
+	return bJumping;
 }
 
 // Called when the game starts or when spawned
@@ -68,7 +77,11 @@ void ASkateCharacter::Move(const FInputActionValue& InputActionValue)
 
 	if (MovementVector.X > 0.0f && SkateMesh)
 	{
-		bPushing = true;
+		if (!GetMovementComponent()->IsFalling())
+		{
+			bPushing = true;
+		}
+
 		bBreaking = false;
 	}
 	else if (MovementVector.X < 0.0f)
@@ -81,7 +94,7 @@ void ASkateCharacter::Move(const FInputActionValue& InputActionValue)
 		bPushing = false;
 	}
 
-	if (MovementVector.Y && SkateSpeed > SkateAcceleration)
+	if (MovementVector.Y && SkateSpeed >= SkateTurningSpeed)
 	{
 		FRotator Rotation(0.0f);
 		Rotation.Yaw = MovementVector.Y;
@@ -97,12 +110,29 @@ void ASkateCharacter::Push()
 	}
 }
 
+void ASkateCharacter::StartJumping()
+{
+	if (SkateSpeed >= SkateJumpingSpeed)
+	{
+		bJumping = true;
+	}
+}
+
+void ASkateCharacter::StopJumping()
+{
+	Super::StopJumping();
+	bJumping = false;
+}
+
 // Called every frame
 void ASkateCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	GetMovementComponent()->Velocity = GetActorForwardVector() * SkateSpeed * DeltaTime;
+	if (!GetMovementComponent()->IsFalling() && !bWasJumping)
+	{
+		GetMovementComponent()->Velocity = GetActorForwardVector() * SkateSpeed * DeltaTime;
+	}
 
 	// Break
 	const bool bMovingForward = FVector::DotProduct(GetVelocity(), GetActorForwardVector()) > 0.0f;
@@ -115,8 +145,6 @@ void ASkateCharacter::Tick(float DeltaTime)
 	{
 		SkateSpeed -= SkateFriction * DeltaTime;
 	}
-
-	//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, FString::Printf(TEXT("%f"), SkateSpeed));
 }
 
 // Called to bind functionality to input
@@ -136,5 +164,7 @@ void ASkateCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComp
 	{
 		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ASkateCharacter::Move);
 		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Completed, this, &ASkateCharacter::OnEndMove);
+		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ASkateCharacter::StartJumping);
+		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ASkateCharacter::StopJumping);
 	}
 }

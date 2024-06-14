@@ -37,14 +37,26 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skate")
 	float SkateFriction;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skate")
+	float SkateJumpingSpeed;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skate")
+	float SkateTurningSpeed;
+
 	UFUNCTION(BlueprintPure, Category = "Skate")
 	float GetSkateSpeed() const;
 
 	UFUNCTION(BlueprintPure, Category = "Skate")
 	bool IsPushing() const;
 
+	UFUNCTION(BlueprintPure, Category = "Skate")
+	bool IsJumping() const;
+
 	UFUNCTION(BlueprintCallable, Category = "Skate")
 	void Push();
+
+	void StartJumping();
+	void StopJumping() override;
 
 protected:
 	virtual void BeginPlay() override;
@@ -67,7 +79,11 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	UInputAction* MoveAction;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+	UInputAction* JumpAction;
+
 	float SkateSpeed;
 	bool bBreaking;
 	bool bPushing;
+	bool bJumping;
 };

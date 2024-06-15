@@ -6,7 +6,6 @@
 #include "GameFramework/Character.h"
 #include "SkateCharacter.generated.h"
 
-//class USkeletalMeshComponent;
 class USpringArmComponent;
 class UCameraComponent;
 class UInputMappingContext;
@@ -14,7 +13,6 @@ class UInputAction;
 class AGoalBox;
 struct FInputActionValue;
 
-// DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE_FiveParams
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FScoreSignature, int, ScoreAdded, bool, HalfScore);
 
 UCLASS()

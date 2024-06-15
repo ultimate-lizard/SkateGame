@@ -57,6 +57,9 @@ public:
 	UInputAction* MoveAction;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+	UInputAction* LookAction;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	UInputAction* JumpAction;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
@@ -92,6 +95,8 @@ public:
 
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
 	void StartJumping();
 	void StopJumping() override;
 
@@ -113,6 +118,7 @@ protected:
 
 	void OnEndMove(const FInputActionValue& InputActionValue);
 	void Move(const FInputActionValue& InputActionValue);
+	void Look(const FInputActionValue& InputActionValue);
 
 	float SkateSpeed;
 	bool bBreaking;

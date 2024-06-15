@@ -23,6 +23,7 @@ ASkateCharacter::ASkateCharacter()
 	DefaultMappingContext = nullptr;
 	MoveAction = nullptr;
 	JumpAction = nullptr;
+	LookAction = nullptr;
 
 	LosingBalanceMontage = nullptr;
 
@@ -262,6 +263,17 @@ void ASkateCharacter::Move(const FInputActionValue& InputActionValue)
 	}
 }
 
+void ASkateCharacter::Look(const FInputActionValue& InputActionValue)
+{
+	const FVector2D MovementVector = InputActionValue.Get<FVector2D>();
+
+	if (APlayerController* PlayerController = GetController<APlayerController>())
+	{
+		PlayerController->AddPitchInput(MovementVector.Y);
+		PlayerController->AddYawInput(MovementVector.X);
+	}
+}
+
 void ASkateCharacter::Push()
 {
 	if (IsLosingBalance())
@@ -353,5 +365,14 @@ void ASkateCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComp
 		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Completed, this, &ASkateCharacter::OnEndMove);
 		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ASkateCharacter::StartJumping);
 		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ASkateCharacter::StopJumping);
+		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &ASkateCharacter::Look);
+	}
+}
+
+void ASkateCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (UCapsuleComponent* Capsule = GetCapsuleComponent())
+	{
+		Capsule->OnComponentHit.RemoveDynamic(this, &ASkateCharacter::OnCapsuleHit);
 	}
 }

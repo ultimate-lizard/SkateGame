@@ -6,11 +6,12 @@
 #include "GameFramework/Character.h"
 #include "SkateCharacter.generated.h"
 
-class USkeletalMeshComponent;
+//class USkeletalMeshComponent;
 class USpringArmComponent;
 class UCameraComponent;
 class UInputMappingContext;
 class UInputAction;
+class AGoalBox;
 struct FInputActionValue;
 
 UCLASS()
@@ -19,12 +20,6 @@ class SKATEGAME_API ASkateCharacter : public ACharacter
 	GENERATED_BODY()
 
 public:
-	ASkateCharacter();
-
-	virtual void Tick(float DeltaTime) override;
-
-	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skate")
 	float SkateMaxSpeed;
 
@@ -55,10 +50,21 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Skate")
 	void Push();
 
+	ASkateCharacter();
+
+	virtual void Tick(float DeltaTime) override;
+
+	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+
 	void StartJumping();
 	void StopJumping() override;
 
+	void SetCurrentGoal(AGoalBox* GoalBox);
+
 protected:
+	UFUNCTION()
+	void OnCapsuleHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
+
 	virtual void BeginPlay() override;
 
 	void OnEndMove(const FInputActionValue& InputActionValue);
@@ -86,4 +92,6 @@ protected:
 	bool bBreaking;
 	bool bPushing;
 	bool bJumping;
+
+	AGoalBox* CurrentGoal;
 };

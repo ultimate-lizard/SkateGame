@@ -6,6 +6,8 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Kismet/KismetMathLibrary.h"
+#include "Actor/GoalBox.h"
+#include "Components/CapsuleComponent.h"
 
 ASkateCharacter::ASkateCharacter()
 {
@@ -27,8 +29,7 @@ ASkateCharacter::ASkateCharacter()
 
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("Follow Camera"));
 	FollowCamera->SetupAttachment(SpringArm, USpringArmComponent::SocketName);
-	// FollowCamera->bUsePawnControlRotation = false;
-
+	
 	DefaultMappingContext = nullptr;
 	MoveAction = nullptr;
 	JumpAction = nullptr;
@@ -37,6 +38,10 @@ ASkateCharacter::ASkateCharacter()
 	bBreaking = false;
 	bPushing = false;
 	bJumping = false;
+
+	CurrentGoal = nullptr;
+
+	GetCapsuleComponent()->OnComponentHit.AddDynamic(this, &ASkateCharacter::OnCapsuleHit);
 }
 
 float ASkateCharacter::GetSkateSpeed() const
@@ -54,7 +59,27 @@ bool ASkateCharacter::IsJumping() const
 	return bJumping;
 }
 
-// Called when the game starts or when spawned
+void ASkateCharacter::OnCapsuleHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
+{
+	if (CurrentGoal)
+	{
+		float HitDotProduct = FVector::DotProduct(GetActorUpVector(), Hit.Normal) > 0.9f;
+		if (HitDotProduct >= 0.9f)
+		{
+			if (CurrentGoal->ObstacleActor != OtherActor)
+			{
+				GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("TOP SCORE!"));
+			}
+			else
+			{
+				GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, TEXT("HALF SCORE!"));
+			}
+		}
+
+		CurrentGoal = nullptr;
+	}
+}
+
 void ASkateCharacter::BeginPlay()
 {
 	Super::BeginPlay();
@@ -120,15 +145,20 @@ void ASkateCharacter::StartJumping()
 
 void ASkateCharacter::StopJumping()
 {
-	Super::StopJumping();
+	ACharacter::StopJumping();
 	bJumping = false;
 }
 
-// Called every frame
+void ASkateCharacter::SetCurrentGoal(AGoalBox* GoalBox)
+{
+	CurrentGoal = GoalBox;
+}
+
 void ASkateCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	// Movement forward
 	if (!GetMovementComponent()->IsFalling() && !bWasJumping)
 	{
 		GetMovementComponent()->Velocity = GetActorForwardVector() * SkateSpeed * DeltaTime;
@@ -141,13 +171,13 @@ void ASkateCharacter::Tick(float DeltaTime)
 		SkateSpeed -= SkateBreakingStrength * DeltaTime;
 	}
 
+	// Friction
 	if (SkateSpeed > 0.0f)
 	{
 		SkateSpeed -= SkateFriction * DeltaTime;
 	}
 }
 
-// Called to bind functionality to input
 void ASkateCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);

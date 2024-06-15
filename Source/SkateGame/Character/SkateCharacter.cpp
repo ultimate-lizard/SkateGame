@@ -20,6 +20,12 @@ ASkateCharacter::ASkateCharacter()
 	SkateJumpingSpeed = 30'000.0f;
 	SkateTurningSpeed = 10'000.0f;
 
+	DefaultMappingContext = nullptr;
+	MoveAction = nullptr;
+	JumpAction = nullptr;
+
+	LosingBalanceMontage = nullptr;
+
 	SkateMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("Skate Mesh"));
 	SkateMesh->SetupAttachment(RootComponent);
 
@@ -29,10 +35,6 @@ ASkateCharacter::ASkateCharacter()
 
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("Follow Camera"));
 	FollowCamera->SetupAttachment(SpringArm, USpringArmComponent::SocketName);
-	
-	DefaultMappingContext = nullptr;
-	MoveAction = nullptr;
-	JumpAction = nullptr;
 
 	SkateSpeed = 0.0f;
 	bBreaking = false;
@@ -40,8 +42,12 @@ ASkateCharacter::ASkateCharacter()
 	bJumping = false;
 
 	CurrentGoal = nullptr;
+	Score = 0;
 
-	GetCapsuleComponent()->OnComponentHit.AddDynamic(this, &ASkateCharacter::OnCapsuleHit);
+	if (UCapsuleComponent* Capsule = GetCapsuleComponent())
+	{
+		Capsule->OnComponentHit.AddDynamic(this, &ASkateCharacter::OnCapsuleHit);
+	}
 }
 
 float ASkateCharacter::GetSkateSpeed() const
@@ -59,31 +65,155 @@ bool ASkateCharacter::IsJumping() const
 	return bJumping;
 }
 
+bool ASkateCharacter::IsCrashing() const
+{
+	if (UWorld* World = GetWorld())
+	{
+		return World->GetTimerManager().IsTimerActive(CrashTimer);
+	}
+
+	return false;
+}
+
+bool ASkateCharacter::IsLosingBalance() const
+{
+	if (USkeletalMeshComponent* CharacterMesh = GetMesh())
+	{
+		if (UAnimInstance* CharacterAnimInstance = CharacterMesh->GetAnimInstance())
+		{
+			return CharacterAnimInstance->Montage_IsPlaying(LosingBalanceMontage);
+		}
+	}
+
+	return false;
+}
+
 void ASkateCharacter::OnCapsuleHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
 {
-	if (CurrentGoal)
+	int ScoredPoints = 0;
+	bool bHalfScore = false;
+	bool bHasScored = false;
+
+	const float HitDotProduct = FVector::DotProduct(GetActorUpVector(), Hit.Normal);
+	const float HitDotProductThreshold = 0.5f;
+	// If collision was vertical
+	if (HitDotProduct >= HitDotProductThreshold && CurrentGoal)
 	{
-		float HitDotProduct = FVector::DotProduct(GetActorUpVector(), Hit.Normal) > 0.9f;
-		if (HitDotProduct >= 0.9f)
+		if (CurrentGoal)
 		{
-			if (CurrentGoal->ObstacleActor != OtherActor)
+			bHasScored = true;
+
+			const bool bLandedOnObstacle = CurrentGoal->ObstacleActor == OtherActor;
+			if (bLandedOnObstacle)
 			{
-				GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("TOP SCORE!"));
+				ScoredPoints = CurrentGoal->Score / 2;
+				bHalfScore = true;
 			}
 			else
 			{
-				GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, TEXT("HALF SCORE!"));
+				ScoredPoints = CurrentGoal->Score;
 			}
 		}
+	}
+	else
+	{
+		// Register hit if collision was horizontal
+		OnSkateCollision(Hit.Normal);
+	}
 
+	Score += ScoredPoints;
+
+	if (bHasScored && CurrentGoal)
+	{
+		OnScore.Broadcast(ScoredPoints, bHalfScore);
 		CurrentGoal = nullptr;
 	}
 }
 
-void ASkateCharacter::BeginPlay()
+void ASkateCharacter::OnSkateCollision(FVector Normal)
 {
-	Super::BeginPlay();
-	
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	FTimerManager& TimerManager = World->GetTimerManager();
+
+	if (TimerManager.IsTimerActive(CollisionTimer))
+	{
+		return;
+	}
+
+	const float CollisionCooldown = 0.5f;
+	TimerManager.SetTimer(CollisionTimer, CollisionCooldown, false);
+
+	const float FatalSpeed = 60'000.0f;
+	if (SkateSpeed >= FatalSpeed && GetCharacterMovement()->IsFalling())
+	{
+		OnCrashStart();
+	}
+	else
+	{
+		const float CollisionDotProduct = FMath::Abs(FVector::DotProduct(GetActorForwardVector(), Normal));
+		const float CollisionDotProductThreshold = 0.8f;
+		if (CollisionDotProduct > CollisionDotProductThreshold)
+		{
+			if (SkateSpeed >= FatalSpeed)
+			{
+				// Play hit montage
+				if (USkeletalMeshComponent* CharacterMesh = GetMesh())
+				{
+					if (UAnimInstance* CharacterAnimInstance = CharacterMesh->GetAnimInstance())
+					{
+						CharacterAnimInstance->Montage_Play(LosingBalanceMontage);
+					}
+				}
+			}
+
+			SkateSpeed = -SkateSpeed / 2.0f;
+		}
+		else
+		{
+			SkateSpeed *= 0.5f;
+		}
+	}
+}
+
+void ASkateCharacter::OnCrashStart()
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	const float FallLength = 3.0f;
+	World->GetTimerManager().SetTimer(CrashTimer, this, &ASkateCharacter::OnCrashEnd, FallLength, false);
+
+	if (USkeletalMeshComponent* CharacterMesh = GetMesh())
+	{
+		CharacterMesh->SetCollisionEnabled(ECollisionEnabled::PhysicsOnly);
+		CharacterMesh->SetAllBodiesSimulatePhysics(true);
+		CharacterMesh->WakeAllRigidBodies();
+		CharacterMesh->SetSimulatePhysics(true);
+	}
+}
+
+void ASkateCharacter::OnCrashEnd()
+{
+	if (USkeletalMeshComponent* CharacterMesh = GetMesh())
+	{
+		const FVector DefaultMeshPosition(0.0f, 0.0f, -78.5f);
+		const FRotator DefaultMeshRotator(0.0f, -90.0f, 0.0f);
+
+		CharacterMesh->SetSimulatePhysics(false);
+		CharacterMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		CharacterMesh->SetAllBodiesSimulatePhysics(false);
+		CharacterMesh->PutRigidBodyToSleep();
+		CharacterMesh->SetRelativeLocation(DefaultMeshPosition);
+		CharacterMesh->SetRelativeRotation(DefaultMeshRotator);
+	}
 }
 
 void ASkateCharacter::OnEndMove(const FInputActionValue& InputActionValue)
@@ -98,6 +228,11 @@ void ASkateCharacter::OnEndMove(const FInputActionValue& InputActionValue)
 
 void ASkateCharacter::Move(const FInputActionValue& InputActionValue)
 {
+	if (IsCrashing())
+	{
+		return;
+	}
+
 	const FVector2D MovementVector = InputActionValue.Get<FVector2D>();
 
 	if (MovementVector.X > 0.0f && SkateMesh)
@@ -129,15 +264,30 @@ void ASkateCharacter::Move(const FInputActionValue& InputActionValue)
 
 void ASkateCharacter::Push()
 {
+	if (IsLosingBalance())
+	{
+		return;
+	}
+
 	if (SkateSpeed < SkateMaxSpeed)
 	{
+		if (SkateSpeed < 0.0f)
+		{
+			SkateSpeed = 0.0f;
+		}
+
 		SkateSpeed += SkateAcceleration;
 	}
 }
 
+int ASkateCharacter::GetScore() const
+{
+	return Score;
+}
+
 void ASkateCharacter::StartJumping()
 {
-	if (SkateSpeed >= SkateJumpingSpeed)
+	if (SkateSpeed >= SkateJumpingSpeed && !IsLosingBalance())
 	{
 		bJumping = true;
 	}
@@ -159,9 +309,12 @@ void ASkateCharacter::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 
 	// Movement forward
-	if (!GetMovementComponent()->IsFalling() && !bWasJumping)
+	if (UPawnMovementComponent* PawnMovementComponent = GetMovementComponent())
 	{
-		GetMovementComponent()->Velocity = GetActorForwardVector() * SkateSpeed * DeltaTime;
+		if (!PawnMovementComponent->IsFalling() && !bWasJumping)
+		{
+			PawnMovementComponent->Velocity = GetActorForwardVector() * SkateSpeed * DeltaTime;
+		}
 	}
 
 	// Break
@@ -175,6 +328,10 @@ void ASkateCharacter::Tick(float DeltaTime)
 	if (SkateSpeed > 0.0f)
 	{
 		SkateSpeed -= SkateFriction * DeltaTime;
+	}
+	else if (SkateSpeed < 0.0f)
+	{
+		SkateSpeed += SkateFriction * DeltaTime;
 	}
 }
 

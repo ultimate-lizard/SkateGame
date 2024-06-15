@@ -14,6 +14,9 @@ class UInputAction;
 class AGoalBox;
 struct FInputActionValue;
 
+// DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE_FiveParams
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FScoreSignature, int, ScoreAdded, bool, HalfScore);
+
 UCLASS()
 class SKATEGAME_API ASkateCharacter : public ACharacter
 {
@@ -38,38 +41,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skate")
 	float SkateTurningSpeed;
 
-	UFUNCTION(BlueprintPure, Category = "Skate")
-	float GetSkateSpeed() const;
-
-	UFUNCTION(BlueprintPure, Category = "Skate")
-	bool IsPushing() const;
-
-	UFUNCTION(BlueprintPure, Category = "Skate")
-	bool IsJumping() const;
-
-	UFUNCTION(BlueprintCallable, Category = "Skate")
-	void Push();
-
-	ASkateCharacter();
-
-	virtual void Tick(float DeltaTime) override;
-
-	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
-
-	void StartJumping();
-	void StopJumping() override;
-
-	void SetCurrentGoal(AGoalBox* GoalBox);
-
-protected:
-	UFUNCTION()
-	void OnCapsuleHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
-
-	virtual void BeginPlay() override;
-
-	void OnEndMove(const FInputActionValue& InputActionValue);
-	void Move(const FInputActionValue& InputActionValue);
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mesh")
 	USkeletalMeshComponent* SkateMesh;
 
@@ -88,10 +59,68 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	UInputAction* JumpAction;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
+	UAnimMontage* LosingBalanceMontage;
+
+	UFUNCTION(BlueprintPure, Category = "Skate")
+	float GetSkateSpeed() const;
+
+	UFUNCTION(BlueprintPure, Category = "Skate")
+	bool IsPushing() const;
+
+	UFUNCTION(BlueprintPure, Category = "Skate")
+	bool IsJumping() const;
+
+	UFUNCTION(BlueprintPure, Category = "Skate")
+	bool IsCrashing() const;
+
+	UFUNCTION(BlueprintPure, Category = "Skate")
+	bool IsLosingBalance() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Skate")
+	void Push();
+
+	UFUNCTION(BlueprintPure, Category = "Score")
+	int GetScore() const;
+
+	UPROPERTY(BlueprintAssignable, Category = "Score")
+	FScoreSignature OnScore;
+
+	ASkateCharacter();
+
+	virtual void Tick(float DeltaTime) override;
+
+	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+
+	void StartJumping();
+	void StopJumping() override;
+
+	void SetCurrentGoal(AGoalBox* GoalBox);
+
+protected:
+	UPROPERTY()
+	int Score;
+
+	UFUNCTION()
+	void OnCapsuleHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
+
+	void OnSkateCollision(FVector Normal);
+
+	void OnCrashStart();
+
+	UFUNCTION()
+	void OnCrashEnd();
+
+	void OnEndMove(const FInputActionValue& InputActionValue);
+	void Move(const FInputActionValue& InputActionValue);
+
 	float SkateSpeed;
 	bool bBreaking;
 	bool bPushing;
 	bool bJumping;
 
 	AGoalBox* CurrentGoal;
+
+	FTimerHandle CollisionTimer;
+	FTimerHandle CrashTimer;
 };

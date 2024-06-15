@@ -41,6 +41,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skate")
 	float SkateTurningSpeed;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skate")
+	float SkateCollisionCooldown;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skate")
+	float SkateCrashSpeed;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mesh")
 	USkeletalMeshComponent* SkateMesh;
 

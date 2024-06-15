@@ -19,6 +19,8 @@ ASkateCharacter::ASkateCharacter()
 	SkateFriction = 10'000.0f;
 	SkateJumpingSpeed = 30'000.0f;
 	SkateTurningSpeed = 10'000.0f;
+	SkateCollisionCooldown = 0.5f;
+	SkateCrashSpeed = 60'000.0f;
 
 	DefaultMappingContext = nullptr;
 	MoveAction = nullptr;
@@ -146,11 +148,9 @@ void ASkateCharacter::OnSkateCollision(FVector Normal)
 		return;
 	}
 
-	const float CollisionCooldown = 0.5f;
-	TimerManager.SetTimer(CollisionTimer, CollisionCooldown, false);
+	TimerManager.SetTimer(CollisionTimer, SkateCollisionCooldown, false);
 
-	const float FatalSpeed = 60'000.0f;
-	if (SkateSpeed >= FatalSpeed && GetCharacterMovement()->IsFalling())
+	if (SkateSpeed >= SkateCrashSpeed && GetCharacterMovement()->IsFalling())
 	{
 		OnCrashStart();
 	}
@@ -160,7 +160,7 @@ void ASkateCharacter::OnSkateCollision(FVector Normal)
 		const float CollisionDotProductThreshold = 0.8f;
 		if (CollisionDotProduct > CollisionDotProductThreshold)
 		{
-			if (SkateSpeed >= FatalSpeed)
+			if (SkateSpeed >= SkateCrashSpeed)
 			{
 				// Play hit montage
 				if (USkeletalMeshComponent* CharacterMesh = GetMesh())

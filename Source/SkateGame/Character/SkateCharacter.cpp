@@ -31,6 +31,7 @@ ASkateCharacter::ASkateCharacter()
 
 	SkateMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("Skate Mesh"));
 	SkateMesh->SetupAttachment(RootComponent);
+	SkateMesh->BoundsScale = 2.0f;
 
 	SpringArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("Spring Arm"));
 	SpringArm->SetupAttachment(RootComponent);

@@ -35,6 +35,7 @@ ASkateCharacter::ASkateCharacter()
 	SpringArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("Spring Arm"));
 	SpringArm->SetupAttachment(RootComponent);
 	SpringArm->TargetArmLength = 400.0f;
+	SpringArm->bEnableCameraLag = true;
 
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("Follow Camera"));
 	FollowCamera->SetupAttachment(SpringArm, USpringArmComponent::SocketName);
